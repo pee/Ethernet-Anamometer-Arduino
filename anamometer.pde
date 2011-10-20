@@ -1,15 +1,18 @@
 /*
 
+ pee@sig13.net:
+
  anenmometer code based on some sample code from these sources:
  the Pachube sensor client code from Tim Igoe and the pachube_anemometer_01 code from pachube
  http://www.tigoe.net/pcomp/code/category/arduinowiring/873
  
  and:
  
- 
  http://openenergymonitor.org/emon/
  
  This code is in the public domain
+
+ -pee
  
  */
 #include <SPI.h>
