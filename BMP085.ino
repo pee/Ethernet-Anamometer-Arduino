@@ -1,3 +1,15 @@
+/*
+
+  This code from:
+
+  BMP085 Extended Example Code
+  by: Jim Lindblom
+  SparkFun Electronics
+  date: 1/18/11
+  license: CC BY-SA v3.0 - http://creativecommons.org/licenses/by-sa/3.0/
+
+*/
+
 // Stores all of the bmp085's calibration values into global variables
 // Calibration values are required to calculate temp and pressure
 // This function should be called at the beginning of the program

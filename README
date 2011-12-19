@@ -1,0 +1,10 @@
+
+
+code i load onto my arduine+ethernet shield to:
+
+
+read anamometer ticks on interupt
+read barometer
+
+
+report above to servlet for storage in a json wrapper
