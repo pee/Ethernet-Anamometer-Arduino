@@ -16,6 +16,7 @@
  
  */
 #include <SPI.h>
+#include <Wire.h>
 #include <Ethernet.h>
 
 const unsigned long REPORT_INTERVAL = 60000;
@@ -34,7 +35,7 @@ byte mac[] = { 0x90,0xA2,0xDA,0x00,0x21,0xAC };
 const char MAC[] = "90A2DA0021AC";
 
 // destination host
-byte ip[] = { 10,1,1,4 };
+IPAddress ip( 10,1,1,4);
 
 // gateway address
 byte gw[] = { 10,1,1,5 };
@@ -43,7 +44,29 @@ byte gw[] = { 10,1,1,5 };
 byte mask[]= { 255,255,255,0 };
 
 // server address,note..make me DNS
-byte server[] = { 10,1,1,18 };
+IPAddress server ( 10,1,1,18 );
+
+// bmp085
+#define BMP085_ADDRESS 0x77  // I2C address of BMP085
+int ac1;
+int ac2; 
+int ac3; 
+unsigned int ac4;
+unsigned int ac5;
+unsigned int ac6;
+int b1; 
+int b2;
+int mb;
+int mc;
+int md;
+// b5 is calculated in bmp085GetTemperature(...), this variable is also used in bmp085GetPressure(...)
+// so ...Temperature(...) must be called before ...Pressure(...).
+long b5; 
+const unsigned char OSS = 0;  // Oversampling Setting
+
+short temperature;
+float ct;
+long pressure;
 
 
 unsigned long previousClicksMillis;
@@ -55,11 +78,16 @@ char replyString[REPLY_LENGTH];
 // data is stored here in the interrupt routing
 unsigned volatile int clicks;
 
-Client client(server, SERVER_PORT);
+//Client client(server, SERVER_PORT);
+EthernetClient client;
 
 
 void setup() {
 
+  Serial.begin(9600);
+  Wire.begin();
+  bmp085Calibration();
+    
   // start the ethernet connection and serial port:
   Ethernet.begin(mac, ip);
 
@@ -92,6 +120,17 @@ void loop() {
     timer = millis();
 
     updateValues();
+    
+    //Serial.println("Getting temp");
+    temperature = bmp085GetTemperature(bmp085ReadUT());
+    ct = temperature * 0.1;
+    //Serial.println("Getting pressure");
+    pressure = bmp085GetPressure(bmp085ReadUP());
+    
+    Serial.print("Pressure: ");
+    Serial.print(pressure, DEC);
+    Serial.println(" Pa");
+    //Serial.println();
 
     memset(replyString, '\0', REPLY_LENGTH );
 
@@ -110,10 +149,8 @@ void loop() {
   
     strcat( replyString, "{\"type\":\"clicks\",\"units\":\"clicks\",");
     strcat( replyString, "\"value\":\"");
-    
-    
+       
     char intPartStr[20];
-
     if (lastClicks < 0 )    {
       lastClicks=lastClicks*-1;
       strcat(intPartStr, "-");     
@@ -123,11 +160,39 @@ void loop() {
     strcat( replyString, intPartStr );       
     
     strcat( replyString, "\"");
-  
     strcat( replyString, "}");
+    
     strcat( replyString, "]}");
     
+    //Serial.println("Sending report0");
+    report();
     
+    memset(replyString, '\0', REPLY_LENGTH );
+    strcat( replyString, "{\"method\":\"Report\",");
+    strcat( replyString, "\"sensorID\":\"");
+    strcat( replyString, MAC );
+    strcat( replyString, "\",");
+    strcat( replyString, "\"readings\":[");
+    
+    strcat( replyString, "{\"type\":\"temperature\",\"units\":\"celcius\",");
+    strcat( replyString, "\"value\":\"");
+    strcat( replyString, floatString(ct,2) );
+    strcat( replyString, "\"");  
+    strcat( replyString, "},");
+    
+    strcat( replyString, "{\"type\":\"pressure\",\"units\":\"Pa\",");
+    strcat( replyString, "\"value\":\"");
+    
+    memset( intPartStr, 0, 20 );
+    ltoa( pressure, intPartStr, 10);
+    strcat( replyString, intPartStr );
+    strcat( replyString, "\"");  
+    strcat( replyString, "}");
+    
+    
+    strcat( replyString, "]}");
+    
+    //Serial.println("Sending report1");
     report();
 
   }
@@ -138,7 +203,10 @@ void loop() {
 void report() {
 
 
-  if (client.connect()) {
+  //Serial.println("Report called");
+  Serial.println(replyString);
+  
+  if (client.connect(server, SERVER_PORT)) {
 
     client.println(HTTP_REPORT);
 
@@ -156,7 +224,9 @@ void report() {
     client.println();
     client.println(replyString);
 
-  } 
+  } else {
+    //Serial.println("Was not able to connect client");
+  }
 
   client.stop();
   client.flush();
